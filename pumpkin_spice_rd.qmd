@@ -1,0 +1,216 @@
+---
+title: "<span style='font-family: Meow Script, cursive; font-weight: 800; font-size: 120px; text-shadow:
+    -2px -2px 0 #000, /* Top-left shadow */
+    -2px -2px 0 #000,  /* Top-right shadow */
+    -2px 2px 0 #000,  /* Bottom-left shadow */
+    -2px 2px 0 #000;'>Pumpkin Spice RD</span>"
+subtitle: "<span style='font-size: 40px; text-shadow:
+    -2px -2px 0 #000, /* Top-left shadow */
+    -2px -2px 0 #000,  /* Top-right shadow */
+    -2px 2px 0 #000,  /* Bottom-left shadow */
+    -2px 2px 0 #000;'>Get ready for experiential discontinuity</span>"
+format: 
+  revealjs:
+    theme: [style.scss]
+    footer: ''
+    slide-number: true
+    html-math-method: mathjax
+    code-overflow: scroll
+    html-table-processing: none
+    
+template-partials:
+  - title-slide.html
+  
+title-slide-attributes:
+  data-background-image: 'https://images.unsplash.com/photo-1629444984221-c3720805e686?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1276' 
+  data-background-color: 'black' 
+  data-background-opacity: '80%'
+---
+
+## You Love It or You Hate It {background-image="https://images.unsplash.com/photo-1632950168640-1e5aa7b0204f?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fHB1bXBraW4lMjBib2tlaHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&q=60&w=700" background-color='#c76644' background-opacity='80%'}
+
+:::{.columns}
+:::{.column}
+![](images/NYT.jpg){height='600px'}
+
+<small>
+<small>
+<div style='background-color: black;'>
+[nytimes | pumpkin spice latte afflicts europe, 2025-10-25](https://www.nytimes.com/2025/10/25/world/europe/pumpkin-spice-latte-coffee-europe.html)
+</div>
+</small>
+</small>
+:::
+
+:::{.column width='50%'}
+![](images/apnews.png){height='600px' right=10px top=90px}
+
+<small>
+<small>
+<div style='background-color: black;'>
+[apnews | the rise of PSL in numbers, 2025-08-26](https://apnews.com/article/pumpkin-spice-latte-starbucks-fall-8c7c2b9b3f8208a3c9c397dfdd01460d)
+</div>
+</small>
+</small>
+:::
+:::
+
+
+## What does it all mean!?
+
+![](images/ai_overview.png)
+
+## Let's look at the data 
+
+:::{.incremental}
+:::{.nonincremental}
+![](images/psl_trends.png){.absolute left=20px top=60px}
+:::
+:::{.fragment}
+![](images/horror_trends.png){.absolute left=30px top=70px}
+:::
+:::
+
+## Hypothesis {background-image="https://images.unsplash.com/photo-1700693003379-42774d3029ff?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8cHVtcGtpbiUyMGJva2VofGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=800" background-opacity='50%' background-color='black'}
+
+:::{.incremental}
+<em>
+I hypothesize that entering into the **Pumpkin Spice Season**
+has a **causal effect** of increasing the success of **horror
+movies** as measured by **IMDb user ratings**.</em>
+
+:::{.fragment}
+<br><br>
+$\to$ Regression Discontinuity Design
+:::
+:::
+
+## Our Dataset {background-image="https://images.unsplash.com/photo-1761501702235-e4370698a7fe?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=988" background-color='black' background-opacity='60%'}
+
+![](images/imdb_movies_csv.png){width='100%'}
+
+<small>
+<div style='background-color: black;'>
+[10,000+ movies from imdb](https://www.kaggle.com/datasets/ashpalsingh1525/imdb-movies-dataset)
+</div>
+</small>
+
+## Determining the Cutoff
+
+![](images/start_of_psl_season.png){width=800px}
+
+:::{.incremental}
+:::{.fragment}
+<br><br>
+$\to$ September 1st
+:::
+:::
+
+## Data Munging
+
+:::{.columns}
+:::{.column width='50%'}
+```r
+# Packages
+pkgs <- c("tidyverse",
+          "lubridate",
+          "stringr",
+          "scales",
+          "rdrobust",
+          "rddensity",
+          "ggplot2",
+          "scales",
+          "dplyr",
+          "gt",
+          "gtExtras")
+for (p in pkgs) if (!requireNamespace(p, quietly = TRUE)) install.packages(p)
+invisible(lapply(pkgs, library, character.only = TRUE))
+
+# ---- Load & prep data ---------------------------------------------
+# Expect columns: names, date_x ("MM/DD/YYYY"), score (0-100), genre, revenue, country, ...
+raw <- readr::read_csv("imdb_movies.csv", show_col_types = FALSE)
+
+dat0 <- raw %>%
+  mutate(
+    release_date = suppressWarnings(lubridate::mdy(date_x)),
+    year_rel     = lubridate::year(release_date), # get the year of release
+    # running variable: days from Sept 1 of that year (negative = pre-spice)
+    cutoff_date  = as.Date(paste0(year_rel, "-09-01")),
+    running      = as.numeric(release_date - cutoff_date),
+    treat        = as.integer(running >= 0),
+    rating     = score
+  ) %>%
+  filter(!is.na(release_date), !is.na(running), !is.na(rating10))
+
+# restrict to Horror
+dat <- dat0 %>%
+  filter(str_detect(genre, regex("\\bHorror\\b", ignore_case = TRUE))) %>%
+  filter(abs(running) <= 60)  # keep a ±60-day window around Sept 1
+
+# these are 644 horror movies within ±60 days of Sep 1
+```
+:::
+:::{.column width='50%'}
+Steps taken: 
+
+  * Add a running variable: days +/- since Sept 1 of release year
+  * Filter to within 60 days of Sept 1
+  * Filter to horror movies 
+:::
+:::
+
+## Main Results
+
+![](images/psrd_main_fig.png)
+
+:::{.incremental}
+:::{.fragment}
+![](images/p_val.png){.absolute top=300px left=40px width=90%}
+:::
+:::
+
+## Assumptions Check 
+
+![](images/psrd_histogram.png)
+
+## Conclusions {background-image='https://images.unsplash.com/photo-1604163993419-3cfb4657d2dd?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=987' background-color='black' background-opacity='40%'}
+
+![](images/p_val.png){.absolute left=20px top=200px width=400px}
+
+![](images/psrd_main_fig.png){.absolute right=20px top=20px width=600px}
+
+<br><br><br><br><br><br><br><br>
+<em>Entering into **Pumpkin Spice Season** on September 1st has a **causal boost**
+of 6.7 pts on horror movie ratings ($p \leq 0.05$).</em>
+
+## A Polished Table
+
+<iframe src="pumpkin_spice_table.html" width='110%' height='70%'></iframe>
+
+<small>
+Sorted by ratings, here are the top 2.5%-percentile rated horror movies in the ±60 days
+released around September 1st -- generated with the `{gt}` and `{gtExtras}` packages.
+</small>
+
+
+##
+
+:::{.columns}
+
+:::{.column width='50%'}
+<center>
+<br><br>
+<span style="font-family: 'Meow Script', cursive; font-weight: 400;">
+<h1 style="font-family: 'Meow Script', cursive; font-weight: 400;"><i>Finito</i></h1>
+
+<br><br>
+<h1 style="font-family: 'Meow Script', cursive; font-weight: 400;">Any questions?</h1>
+</span>
+</center>
+:::
+
+:::{.column width='50%'}
+![](images/hodu_fall.jpg){.absolute right=50 top=0}
+:::
+
+:::
