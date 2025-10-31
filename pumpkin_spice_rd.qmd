@@ -165,7 +165,7 @@ Steps taken:
 
 :::{.incremental}
 :::{.fragment}
-![](images/p_val.png){.absolute top=300px left=40px width=90%}
+![](images/p_val.PNG){.absolute top=300px left=40px width=90%}
 :::
 :::
 
